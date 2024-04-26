@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pizza Messaging</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #ffac70;
+        color: #333;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        transition: 0.3s;
+      }
+
+      .container {
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      p {
+        user-select: none;
+      }
+      h1 {
+        text-align: center;
+        color: #ff5733;
+        user-select: none;
+      }
+
+      textarea {
+        width: 250px;
+        margin-bottom: 10px;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        resize: none;
+      }
+
+      button {
+        background-color: #ff5733;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-right: 10px;
+        transition: background-color 0.3s ease;
+      }
+
+      button:hover {
+        background-color: #e84525;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" id="senderScreen">
+      <h1>Pizza Ordering</h1>
+      <h3>
+        1. Cheese Pizza <br />2. Veggie Pizza <br />3. Pepperoni Pizza <br />4.
+        Meat Pizza <br />5. Margherita Pizza <br />6. BBQ Chicken
+      </h3>
+      <textarea
+        id="inputText"
+        rows="4"
+        placeholder="Type your pizza name to feel it"
+      ></textarea>
+      <br />
+      <button onclick="encrypt()" id="encryptBtn">Place Order</button>
+    </div>
+
+    <div class="container" id="receiverScreen" style="display: none">
+      <h1>Your Pizza Order is <br />end-to-end-encrypted</h1>
+      <p>Your Pizza Details which only we will understand:</p>
+      <textarea id="encryptedText" rows="4" readonly></textarea><br /><br />
+      <button onclick="decrypt()" id="decryptBtn">Order Now</button>
+      <p>Order Placed :</p>
+      <textarea id="decryptedText" rows="4" readonly></textarea>
+      <br /><br />
+      <button onclick="goToSenderScreen()">Order Another Pizza</button>
+    </div>
+
+    <script>
+      const validPizzaNames = [
+        "Cheese Pizza",
+        "Veggie Pizza",
+        "Pepperoni Pizza",
+        "Meat Pizza",
+        "Margherita Pizza",
+        "BBQ Chicken",
+      ];
+
+      function validatePizzaName(inputText) {
+        const lowercaseInput = inputText.toLowerCase();
+        return validPizzaNames.some(
+          (pizza) => pizza.toLowerCase() === lowercaseInput
+        );
+      }
+
+      async function init() {
+        const { privateKey, publicKey } =
+          await window.crypto.subtle.generateKey(
+            {
+              name: "RSA-OAEP",
+              modulusLength: 2048,
+              publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
+              hash: "SHA-256",
+            },
+            true,
+            ["encrypt", "decrypt"]
+          );
+        window.publicKey = publicKey;
+        window.privateKey = privateKey;
+      }
+      init();
+
+      async function encrypt() {
+        const inputText = document.getElementById("inputText").value;
+        if (!validatePizzaName(inputText)) {
+          alert("Please enter a valid pizza name from the list.");
+          return;
+        }
+        const encodedText = new TextEncoder().encode(inputText);
+        const encryptedData = await window.crypto.subtle.encrypt(
+          {
+            name: "RSA-OAEP",
+          },
+          window.publicKey,
+          encodedText
+        );
+        document.getElementById("encryptedText").value =
+          arrayBufferToBase64(encryptedData);
+        document.getElementById("senderScreen").style.display = "none";
+        document.getElementById("receiverScreen").style.display = "block";
+      }
+
+      async function decrypt() {
+        const encryptedText = document.getElementById("encryptedText").value;
+        const encryptedData = base64ToArrayBuffer(encryptedText);
+        const decryptedData = await window.crypto.subtle.decrypt(
+          {
+            name: "RSA-OAEP",
+          },
+          window.privateKey,
+          encryptedData
+        );
+        const decryptedText = new TextDecoder().decode(decryptedData);
+        document.getElementById("decryptedText").value = decryptedText;
+      }
+
+      function arrayBufferToBase64(buffer) {
+        const bytes = new Uint8Array(buffer);
+        let binary = "";
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
+      }
+
+      function base64ToArrayBuffer(base64) {
+        const binaryString = window.atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+      }
+
+      function goToSenderScreen() {
+        document.getElementById("senderScreen").style.display = "block";
+        document.getElementById("receiverScreen").style.display = "none";
+      }
+    </script>
+  </body>
+</html>
